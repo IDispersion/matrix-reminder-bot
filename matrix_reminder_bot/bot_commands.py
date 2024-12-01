@@ -541,15 +541,24 @@ class Command(object):
     async def _delete_reminder(self):
         """Delete a reminder via its reminder text"""
         reminder_text = " ".join(self.args)
+        check = str(self.args)
         if not reminder_text:
             raise CommandSyntaxError()
-
         logger.debug("Known reminders: %s", REMINDERS)
         logger.debug(
             "Deleting reminder in room %s: %s", self.room.room_id, reminder_text
         )
-
-        reminder = REMINDERS.get((self.room.room_id, reminder_text.upper()))
+        logger.warning(f"DEBUG-H: Check param: {check}")
+        if check == "all":
+            reminder = False
+            room_reminders = {
+                key: reminder
+                for key, reminder in REMINDERS.items()
+                if key[0] == self.room.room_id
+            }
+        else:
+            reminder = REMINDERS.get((self.room.room_id, reminder_text.upper()))
+            room_reminders = False
         if reminder:
             # Cancel the reminder and associated alarms
             reminder.cancel()
@@ -561,6 +570,18 @@ class Command(object):
         else:
             text = f"Unknown reminder '{reminder_text}'."
 
+        # Удаление всех дейли для комнаты
+        if room_reminders:
+            try:
+                for key, text in room_reminders.items():
+                    text.cancel()
+                text = "Reminder"
+                if reminder.alarm:
+                    text = "Alarm"
+
+                text += f' "*{reminder_text}*" cancelled.'
+            except Exception:
+                text = "Error of deleting -all reminders"
         await send_text_to_room(self.client, self.room.room_id, text)
 
     @command_syntax("")
