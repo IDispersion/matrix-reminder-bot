@@ -541,7 +541,7 @@ class Command(object):
     async def _delete_reminder(self):
         """Delete a reminder via its reminder text"""
         reminder_text = " ".join(self.args)
-        check = str(self.args)
+        check = str(self.args[0]).lower()
         if not reminder_text:
             raise CommandSyntaxError()
         logger.debug("Known reminders: %s", REMINDERS)
@@ -575,11 +575,7 @@ class Command(object):
             try:
                 for key, text in room_reminders.items():
                     text.cancel()
-                text = "Reminder"
-                if reminder.alarm:
-                    text = "Alarm"
-
-                text += f' "*{reminder_text}*" cancelled.'
+                text += f"All reminders to this room cancelled."
             except Exception:
                 text = "Error of deleting -all reminders"
         await send_text_to_room(self.client, self.room.room_id, text)
