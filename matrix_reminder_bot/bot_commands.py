@@ -539,45 +539,44 @@ class Command(object):
 
     @command_syntax("<reminder text>")
     async def _delete_reminder(self):
-        """Delete a reminder via its reminder text"""
+        """Delete a reminder via its reminder text or all reminders in a room"""
         reminder_text = " ".join(self.args)
-        check = str(self.args[0]).lower()
         if not reminder_text:
             raise CommandSyntaxError()
+
         logger.debug("Known reminders: %s", REMINDERS)
-        logger.debug(
-            "Deleting reminder in room %s: %s", self.room.room_id, reminder_text
-        )
-        logger.warning(f"DEBUG-H: Check param: {check}")
-        if check == "all":
-            reminder = False
-            room_reminders = {
-                key: reminder
-                for key, reminder in REMINDERS.items()
-                if key[0] == self.room.room_id
-            }
+
+        if reminder_text.lower() == "all":
+            # Find all reminders for the room
+            reminders_to_delete = [
+                key for key in REMINDERS.keys() if key[0] == self.room.room_id
+            ]
+
+            if reminders_to_delete:
+                for key in reminders_to_delete:
+                    reminder = REMINDERS[key]
+                    reminder.cancel()  # Cancel the reminder and associated alarms
+
+                text = f"All reminders for this room have been cancelled."
+            else:
+                text = f"No reminders found for this room."
+
         else:
+            logger.debug(
+                "Deleting reminder in room %s: %s", self.room.room_id, reminder_text
+            )
             reminder = REMINDERS.get((self.room.room_id, reminder_text.upper()))
-            room_reminders = False
-        if reminder:
-            # Cancel the reminder and associated alarms
-            reminder.cancel()
+            if reminder:
+                # Cancel the reminder and associated alarms
+                reminder.cancel()
 
-            text = "Reminder"
-            if reminder.alarm:
-                text = "Alarm"
-            text += f' "*{reminder_text}*" cancelled.'
-        else:
-            text = f"Unknown reminder '{reminder_text}'."
+                text = "Reminder"
+                if reminder.alarm:
+                    text = "Alarm"
+                text += f' "*{reminder_text}*" cancelled.'
+            else:
+                text = f"Unknown reminder '{reminder_text}'."
 
-        # Удаление всех дейли для комнаты
-        if room_reminders:
-            try:
-                for key, text in room_reminders.items():
-                    text.cancel()
-                text += f"All reminders to this room cancelled."
-            except Exception:
-                text = "Error of deleting -all reminders"
         await send_text_to_room(self.client, self.room.room_id, text)
 
     @command_syntax("")
